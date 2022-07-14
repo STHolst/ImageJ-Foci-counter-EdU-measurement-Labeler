@@ -19,6 +19,7 @@
 * This macro uses a 'superloop' to repeat the macro over several folders - this means you need to select the folder 'above' the folder that contains your images
 * i.e. if your data is structured like this: "*/data/**experiment1**/condition1/image1.TIF*" you need to select the "***experiment1***" folder as your directory, rather than "*condition1*", because the macro will search for images, within folders of the selected directory, rather than searching for images directly within the selected directory. 
 * This allows you to run the macro on several conditions structured in separate folders.
+* Only .TIF files are supported.
 
 ### 3. Let the macro run
 * Depending on the number of images and cells to process, this may take a while. Do not use your keyboard while the macro runs, as any keyboard input can be interpreted by Fiji/ImageJ and might disturb the process.
