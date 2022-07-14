@@ -1,12 +1,12 @@
-// Count number of foci
-// Based on mean + factor * SD threshold method of Adriaan
-//
-// Gert van Cappellen
-// 23/7/2018 added CellID, an individual identifier per cell
-// contains imagenr*1000 + cellnr
-//
-
-// Aanpassen: Results in 1 mapje en niet MAX name maar image name
+/*
+ * This macro was build upon Gert's foci counting macro based on the mean + factor * SD threshold method of Adriaan
+ * This version includes the measurement of the EdU signal, allowing for the comparison of foci counts to total EdU signal in the cell.
+ * EdU is measured by taking the total average EdU signal of the nucleus' area based on the DAPI signal, therefore the signal value should not be skewed by nucleus size. 
+ * ------------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------------------
+ * Original macro created by Gert van Capellen
+ * Edited to include EdU measurement by Sean Holst
+ */
 
 if (isOpen("Log")) { 
      selectWindow("Log"); 
@@ -21,14 +21,15 @@ if (isOpen("ROI Manager")) {
 
 // Define variables here
 
+// Prot1,Prot2
 macroName="Batch_";
-minThreshold=newArray(70,70); // Minimal threshold
+minThreshold=newArray(70,50); // Minimal threshold
 maxThreshold=newArray(100,150); // Maximal threshold
 factor =newArray(1.4,0.8); //factor*std voor threshold!
 Nuclmin= 60; //minimal nucleus size
 Nuclmax=400; //maximal nucleus size
-Spotmin=newArray(0.2,0.2); //minimal spotsize
-Spotmax1=newArray(30,30); //maximal spotsize before watershed
+Spotmin=newArray(0.2,0.1); //minimal spotsize
+Spotmax1=newArray(30,40); //maximal spotsize before watershed
 Spotmax2=newArray(3,3); //maximal spotsize after watershed
 eduThreshold=12;
 
@@ -54,7 +55,7 @@ print("");
 FolderNames=getFileList(dirF);
 Array.sort(FolderNames);
 
-//Super for loop: To process the entire experiment
+// Super for loop: To process the entire experiment
 for (ll=0; ll<FolderNames.length; ll++){
 	dir=dirF+FolderNames[ll];
 		
@@ -91,56 +92,53 @@ imageNr++;
 // Put your macro here
 roiManager("Reset");
 name = getTitle();
-//rename("MAX");
 
+
+// set DAPI channel
 Stack.setChannel(1);
-run("Gaussian Blur...", "sigma=1 slice"); //TH
-//setThreshold(23, 255, "Huang");
-//run("Convert to Mask", "method=Default background=Dark slice");
-//setAutoThreshold("Huang dark");
+Stack.setActiveChannels("100");
+run("Gaussian Blur...", "sigma=1 slice"); 
+
 run("Convert to Mask", "method=Huang background=Dark only black");
 
-run("Invert","slice"); 												//invert
+run("Invert","slice"); 						
 
-//waitForUser("inverted slice");
 
 // default tolerance=0.5
 run("Adjustable Watershed", "tolerance=0.5 slice");
 
 run("Set Measurements...", "area mean integrated standard stack redirect=None decimal=3");
 run("Analyze Particles...", "size=Nuclmin-Nuclmax exclude include add slice");
-//waitForUser("analyzed particles");
+
 
 roiManager("Remove Channel Info");
-//waitForUser("remove channel info");
+
 
 run("Clear Results");
-//waitForUser("clear results");
 
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
 
-//EdU check - loops through ROI on channel 3 and outputs the mean of each cell with + or - label
-Stack.setChannel(3);
-run("Gaussian Blur...", "sigma=1 slice"); 							//blur to mitigate noise
+
+// EdU check - loops through ROI on channel 3 and outputs the mean of each cell with 1 (positive) or 0 (negative) label
+Stack.setChannel(2);
+Stack.setActiveChannels("010");
+run("Gaussian Blur...", "sigma=1 slice");	// blur to mitigate noise
 nRoi = roiManager("Measure");
 MeanEdU = newArray(nResults);
 eduPos = newArray(nResults);
-eduPosFoci = newArray(nResults);	//test
+eduPosFoci = newArray(nResults);	
 eduPosMean = newArray(nResults);
-eduNegFoci = newArray(nResults); 	//test
+eduNegFoci = newArray(nResults); 
 eduNegMean = newArray(nResults);
 iPos = 0;
 iNeg = 0;
 
 for(i = 0; i < nResults; i++) {
-	Stack.setChannel(3);
+	Stack.setChannel(2);
 	roiManager("select", i);
 	getStatistics(area, mean, min, max, std, histogram);
 	setResult("EdUMean", i, mean);
 	
-	//Label EdU positive or negative based on EdU mean
+	// Label EdU positive or negative based on EdU mean
 	if (mean >= eduThreshold) {
 		setResult("EdU", i, "1");
 		eduPos[i] = getResult("EdU", i);
@@ -167,36 +165,34 @@ run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\
 print("Post-excel write MeanEdU:");
 Array.print(MeanEdU);
 print("----------------------------");
-//
-//run("Clear Results");
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
+
 roiManager("Remove Channel Info");
 roiManager("Reset");
 Stack.setChannel(1);
-run("Select None"); 	//deselects last ROI on image itself to prevent errors
+run("Select None"); 	// Deselects last ROI on image to prevent errors
 run("Analyze Particles...", "size=Nuclmin-Nuclmax exclude include add slice");
 roiManager("Remove Channel Info");
 run("Clear Results");
 
-//53BP1 spots
-Stack.setChannel(4);
+
+// Prot1 spots
+Stack.setChannel(3);
+Stack.setActiveChannels("003");
 roiManager("Measure");
-Area53BP1 = newArray(nResults);
-Mean53BP1 = newArray(nResults);
-Std53BP1 = newArray(nResults);
-nSpots53BP1 = newArray(nResults);
-areaSpots53BP1 = newArray(nResults);
-avgIntensitySpots53BP1 = newArray(nResults);
-intDenSpots53BP1 =newArray(nResults);
-SpotsPerArea53BP1 =newArray(nResults);
+AreaProt1 = newArray(nResults);
+MeanProt1 = newArray(nResults);
+StdProt1 = newArray(nResults);
+nSpotsProt1 = newArray(nResults);
+areaSpotsProt1 = newArray(nResults);
+avgIntensitySpotsProt1 = newArray(nResults);
+intDenSpotsProt1 =newArray(nResults);
+SpotsPerAreaProt1 =newArray(nResults);
 
 
 for (i=0;i<nResults;i++){
-	Area53BP1[i] = getResult("Area",i);
-	Mean53BP1[i] = getResult("Mean",i);
-	Std53BP1[i] = getResult("StdDev",i);
+	AreaProt1[i] = getResult("Area",i);
+	MeanProt1[i] = getResult("Mean",i);
+	StdProt1[i] = getResult("StdDev",i);
 }
 run("Clear Results");
 start = 0;
@@ -205,42 +201,41 @@ end = roiManager("Count");
 for (i=0; i<end; i++){
 	roiManager("Select", i);
 	start = nResults;
-	Threshold = Mean53BP1[i]+factor[0]*Std53BP1[i];
+	Threshold = MeanProt1[i]+factor[0]*StdProt1[i];
 	if (Threshold<minThreshold[0]) Threshold=minThreshold[0]; 
 	if (Threshold>maxThreshold[0]) Threshold=maxThreshold[0];
 	setThreshold(Threshold,255);
 	run("Analyze Particles...", "size="+Spotmin[0]+"-"+Spotmax1[0]+" show=Masks include slice");
-	run("Grays");
 	run("Adjustable Watershed", "tolerance=.1");
 	imageCalculator("AND", "Mask of "+name,name);
 	setThreshold(Threshold,255);
 	run("Analyze Particles...", "size="+Spotmin[0]+"-"+Spotmax2[0]+" display include slice add");
 	close();
 	count = 0;
-	summeanSpots53BP1 = 0;
-	sumareaSpots53BP1 = 0;
+	summeanSpotsProt1 = 0;
+	sumareaSpotsProt1 = 0;
 	for (j=start; j<nResults; j++){
 		setResult("nCel",j,i+1);
 		setResult("CellID",j,(imageNr*1000)+i+1);
 		count++;
-		sumareaSpots53BP1 = sumareaSpots53BP1 + getResult("Area",j);
-		summeanSpots53BP1 = summeanSpots53BP1 + getResult("Mean",j);
-		intDenSpots53BP1[i]=intDenSpots53BP1[i]+getResult("IntDen");
+		sumareaSpotsProt1 = sumareaSpotsProt1 + getResult("Area",j);
+		summeanSpotsProt1 = summeanSpotsProt1 + getResult("Mean",j);
+		intDenSpotsProt1[i]=intDenSpotsProt1[i]+getResult("IntDen");
 		
 	}
 
-	nSpots53BP1[i] = count;
-	areaSpots53BP1[i] = sumareaSpots53BP1/count;
-	avgIntensitySpots53BP1[i] = summeanSpots53BP1/count;
-	SpotsPerArea53BP1[i] = count/Area53BP1[i];	
+	nSpotsProt1[i] = count;
+	areaSpotsProt1[i] = sumareaSpotsProt1/count;
+	avgIntensitySpotsProt1[i] = summeanSpotsProt1/count;
+	SpotsPerAreaProt1[i] = count/AreaProt1[i];	
 }
 
 
-run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\/53BP1Spots "+File.getName(dir)+".xlsx]");
+run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\/Prot1Spots "+File.getName(dir)+".xlsx]");
 run("Duplicate...", "duplicate");
 roiManager("Show All without labels");
 run("From ROI Manager");
-saveAs("Tiff", dir+"ResultImages/Result53BP1_"+name);
+saveAs("Tiff", dir+"ResultImages/ResultProt1_"+name);
 close();
 
 run("Clear Results");
@@ -251,23 +246,22 @@ roiManager("Remove Channel Info");
 run("Clear Results");
 
 
-
-//yH2AX spots
+// Prot2 spots
 Stack.setChannel(2);
 roiManager("Measure");
-AreayH2AX = newArray(nResults);
-MeanyH2AX = newArray(nResults);
-StdyH2AX = newArray(nResults);
-nSpotsyH2AX = newArray(nResults);
-areaSpotsyH2AX = newArray(nResults);
-avgIntensitySpotsyH2AX = newArray(nResults);
-intDenSpotsyH2AX =newArray(nResults);
-SpotsPerAreayH2AX =newArray(nResults);
+AreaProt2 = newArray(nResults);
+MeanProt2 = newArray(nResults);
+StdProt2 = newArray(nResults);
+nSpotsProt2 = newArray(nResults);
+areaSpotsProt2 = newArray(nResults);
+avgIntensitySpotsProt2 = newArray(nResults);
+intDenSpotsProt2 =newArray(nResults);
+SpotsPerAreaProt2 =newArray(nResults);
 
 for (i=0;i<nResults;i++){
-	AreayH2AX[i] = getResult("Area",i);
-	MeanyH2AX[i] = getResult("Mean",i);
-	StdyH2AX[i] = getResult("StdDev",i);
+	AreaProt2[i] = getResult("Area",i);
+	MeanProt2[i] = getResult("Mean",i);
+	StdProt2[i] = getResult("StdDev",i);
 }
 run("Clear Results");
 start =0;
@@ -277,37 +271,36 @@ end= roiManager("Count");
 for (i=0; i<end; i++){
 	roiManager("Select", i);
 	start = nResults;
-	Threshold = MeanyH2AX[i]+factor[1]*StdyH2AX[i];
+	Threshold = MeanProt2[i]+factor[1]*StdProt2[i];
 	if (Threshold<minThreshold[1]) Threshold=minThreshold[1]; 
 	if (Threshold>maxThreshold[1]) Threshold=maxThreshold[1];
 	setThreshold(Threshold,255);
 	run("Analyze Particles...", "size="+Spotmin[1]+"-"+Spotmax1[1]+" show=Masks include slice");
-	run("Grays");
 	run("Adjustable Watershed", "tolerance=.1");
 	imageCalculator("AND", "Mask of "+name,name);
 	setThreshold(Threshold,255);
 	run("Analyze Particles...", "size="+Spotmin[1]+"-"+Spotmax2[1]+" display include slice add");
 	close();
 	count = 0;
-	summeanSpotsyH2AX = 0;
-	sumareaSpotsyH2AX = 0;
+	summeanSpotsProt2 = 0;
+	sumareaSpotsProt2 = 0;
 	for (j=start; j<nResults; j++){
 		setResult("nCel",j,i+1);
 		setResult("CellID",j,(imageNr*1000)+i+1);
 		count++;
-		sumareaSpotsyH2AX = sumareaSpotsyH2AX + getResult("Area",j);
-		summeanSpotsyH2AX = summeanSpotsyH2AX + getResult("Mean",j);
-		intDenSpotsyH2AX[i]=intDenSpotsyH2AX[i]+getResult("IntDen");
+		sumareaSpotsProt2 = sumareaSpotsProt2 + getResult("Area",j);
+		summeanSpotsProt2 = summeanSpotsProt2 + getResult("Mean",j);
+		intDenSpotsProt2[i]=intDenSpotsProt2[i]+getResult("IntDen");
 		
 	}
 
-	nSpotsyH2AX[i] = count;
-	areaSpotsyH2AX[i] = sumareaSpotsyH2AX/count;
-	avgIntensitySpotsyH2AX[i] = summeanSpotsyH2AX/count;
-	SpotsPerAreayH2AX[i] = count/AreayH2AX[i];
+	nSpotsProt2[i] = count;
+	areaSpotsProt2[i] = sumareaSpotsProt2/count;
+	avgIntensitySpotsProt2[i] = summeanSpotsProt2/count;
+	SpotsPerAreaProt2[i] = count/AreaProt2[i];
 	
 }
-run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\/yH2AXSpots "+File.getName(dir)+".xlsx]");
+run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\/Prot2Spots "+File.getName(dir)+".xlsx]");
 run("Clear Results");
 
 for (i=0; i<end; i++){
@@ -315,33 +308,32 @@ for (i=0; i<end; i++){
 	//DAPI
 	setResult("CellID",i,(imageNr*1000)+i+1);
 	setResult("nCel",i,i+1);
-	setResult("AreaNuclei",i, Area53BP1[i]);
 
-	//53BP1
-	setResult("Mean53BP1Nuclei", i, Mean53BP1[i]);
-	setResult("Std53BP1Nuclei",i, Std53BP1[i]);
-	tr=Mean53BP1[i]+factor[0]*Std53BP1[i];
+	//Prot1
+	setResult("MeanProt1Nuclei", i, MeanProt1[i]);
+	setResult("StdProt1Nuclei",i, StdProt1[i]);
+	tr=MeanProt1[i]+factor[0]*StdProt1[i];
 	if (tr<minThreshold[0]) tr=minThreshold[0];
 	if (tr>maxThreshold[0]) tr=maxThreshold[0];
-	setResult("Threshold53BP1",i, tr);
-	setResult("53BP1Spots",i, nSpots53BP1[i]);
-	setResult("AvgArea53BP1Spots",i, areaSpots53BP1[i]);
-	setResult("AvgIntensity53BP1Spots",i, avgIntensitySpots53BP1[i]);
-	setResult("IntDen53BP1Spots",i,intDenSpots53BP1[i]);
-	setResult("53BP1SpotsPerArea",i,SpotsPerArea53BP1[i]);
+	setResult("ThresholdProt1",i, tr);
+	setResult("Prot1Spots",i, nSpotsProt1[i]);
+	setResult("AvgAreaProt1Spots",i, areaSpotsProt1[i]);
+	setResult("AvgIntensityProt1Spots",i, avgIntensitySpotsProt1[i]);
+	setResult("IntDenProt1Spots",i,intDenSpotsProt1[i]);
+	setResult("Prot1SpotsPerArea",i,SpotsPerAreaProt1[i]);
 
-	//yH2AX
-	setResult("MeanyH2AXNuclei", i, MeanyH2AX[i]);
-	setResult("StdyH2AXNuclei",i, StdyH2AX[i]);
-	tr=MeanyH2AX[i]+factor[1]*StdyH2AX[i];
+	//Prot2
+	setResult("MeanProt2Nuclei", i, MeanProt2[i]);
+	setResult("StdProt2Nuclei",i, StdProt2[i]);
+	tr=MeanProt2[i]+factor[1]*StdProt2[i];
 	if (tr<minThreshold[1]) tr=minThreshold[1];
 	if (tr>maxThreshold[1]) tr=maxThreshold[1];
-	setResult("ThresholdyH2AX",i, tr);
-	setResult("yH2AXSpots",i, nSpotsyH2AX[i]);
-	setResult("AvgAreayH2AXSpots",i, areaSpotsyH2AX[i]);
-	setResult("AvgIntensityyH2AXSpots",i, avgIntensitySpotsyH2AX[i]);
-	setResult("IntDenyH2AXSpots",i,intDenSpotsyH2AX[i]);
-	setResult("yH2AXSpotsPerArea",i,SpotsPerAreayH2AX[i]);
+	setResult("ThresholdProt2",i, tr);
+	setResult("Prot2Spots",i, nSpotsProt2[i]);
+	setResult("AvgAreaProt2Spots",i, areaSpotsProt2[i]);
+	setResult("AvgIntensityProt2Spots",i, avgIntensitySpotsProt2[i]);
+	setResult("IntDenProt2Spots",i,intDenSpotsProt2[i]);
+	setResult("Prot2SpotsPerArea",i,SpotsPerAreaProt2[i]);
 
 	//EdU
 	Array.print(MeanEdU);
@@ -352,7 +344,7 @@ for (i=0; i<end; i++){
 run("Read and Write Excel","stack_results no_count_column file=["+dirF+"Results\/Nuclei "+File.getName(dir)+".xlsx]");
 roiManager("Show All without labels");
 run("From ROI Manager");
-saveAs("Tiff", dir+"ResultImages/ResultyH2AX_"+name);
+saveAs("Tiff", dir+"ResultImages/ResultProt2_"+name);
 
 
 		run("Close All");
@@ -362,7 +354,8 @@ saveAs("Tiff", dir+"ResultImages/ResultyH2AX_"+name);
 	} // END IF MAIN LOOP
 }// END FOR MAIN LOOP
 
-}// END Super For loop
+
+}// END Super For loop
 // End log file and save in result images directory
 getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 print("End: ",hour+":"+minute+":"+second);
