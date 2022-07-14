@@ -1,4 +1,5 @@
 /*
+ * Foci Counter + EdU measurement and labeling (v0.9)
  * This macro was build upon Gert's foci counting macro based on the mean + factor * SD threshold method of Adriaan
  * This version includes the measurement of the EdU signal, allowing for the comparison of foci counts to total EdU signal in the cell.
  * EdU is measured by taking the total average EdU signal of the nucleus' area based on the DAPI signal, therefore the signal value should not be skewed by nucleus size. 
