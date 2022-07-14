@@ -27,4 +27,4 @@
 ### 4. Examine the results and optimize the settings if necessary.
 * The data will be exported to the Results folder in your selected directory. <br> (i.e. "*/data/experiment1/**Results***")
 * The result images are exported to ResultImages folder in the subfolders of your selected directory </br> (i.e. "*/data/experiment1/condition1/**ResultImages***") 
-* Examine the images in ResultImages and see if the macro detection is accurate. It's advised to take a sample and do a foci count by eye, and compare this to the macro's results.
+* Examine the images in ***ResultImages*** and see if the macro detection is accurate. It's advised to take a sample and do a foci count by eye, and compare this to the macro's results.
