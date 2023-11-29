@@ -21,7 +21,7 @@
 * This allows you to run the macro on several conditions structured in separate folders.
 * Only .TIF files are supported.
 
-### 3. Let the macro run
+### 3. Run the macro
 * Depending on the number of images and cells to process, this may take a while. Do not use your keyboard while the macro runs, as any keyboard input can be interpreted by Fiji/ImageJ and might disturb the process.
 
 ### 4. Examine the results and optimize the settings if necessary.
